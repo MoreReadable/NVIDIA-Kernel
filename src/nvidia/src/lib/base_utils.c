@@ -64,13 +64,13 @@ NvU32 nvLogBase2(NvU64 value){
  * @return the lowest zero bit, numElements*32 otherwise.
  */
  
-NvU32 nvBitFieldLSZero(NvU32 * pBitField32,NvU32 numElements){
+NvU32 nvBitFieldLSZero(NvU32 * pBitField32,NvU32 count){
     
     NvU32 i;
 
-    for (i = 0;i < numElements;++i){
+    for (i = 0;i < count;++i){
         
-        NvU32 temp = ~pBitField32[i];
+        NvU32 temp = ~ pBitField32[i];
         
         if(temp){
             LOWESTBITIDX_32(temp);
@@ -78,7 +78,7 @@ NvU32 nvBitFieldLSZero(NvU32 * pBitField32,NvU32 numElements){
         }
     }
 
-    return numElements*32;
+    return count*32;
 }
 
 
@@ -96,13 +96,15 @@ NvU32 nvBitFieldLSZero(NvU32 * pBitField32,NvU32 numElements){
  * @return The highest zero bit, numElements*32 otherwise.
  */
 
-NvU32 nvBitFieldMSZero(NvU32 * pBitField32,NvU32 numElements){
+NvU32 nvBitFieldMSZero(NvU32 * pBitField32,NvU32 count){
     
-    NvU32 i = 0, j = numElements - 1;
+    NvU32 
+        j = count - 1,
+        i = 0;
 
-    while (i++ < numElements){
+    while (i++ < count){
         
-        NvU32 temp = ~pBitField32[j];
+        NvU32 temp = ~ pBitField32[j];
         
         if(temp){
             HIGHESTBITIDX_32(temp);
@@ -112,20 +114,20 @@ NvU32 nvBitFieldMSZero(NvU32 * pBitField32,NvU32 numElements){
         j--;
     }
 
-    return numElements * 32;
+    return count * 32;
 }
 
 
-NvBool nvBitFieldTest(NvU32 * pBitField,NvU32 numElements,NvU32 bit){
-    return (bit < numElements * 32)
+NvBool nvBitFieldTest(NvU32 * pBitField,NvU32 count,NvU32 bit){
+    return (bit < count * 32)
         ? (NvBool) !!(pBitField[bit / 32] & NVBIT(bit % 32)) 
         : NV_FALSE;
 }
 
 
-void nvBitFieldSet(NvU32 * pBitField,NvU32 numElements,NvU32 bit,NvBool value){
+void nvBitFieldSet(NvU32 * pBitField,NvU32 count,NvU32 bit,NvBool value){
     
-    NV_ASSERT(bit < numElements*32);
+    NV_ASSERT(bit < count * 32);
     
     pBitField[bit / 32] = 
         (pBitField[bit / 32] & ~NVBIT(bit % 32)) | 
@@ -145,13 +147,13 @@ void nvBitFieldSet(NvU32 * pBitField,NvU32 numElements,NvU32 bit,NvBool value){
 //    nvMergeSort(array, arrsize(array), temp, sizeof(NvU32), integerLess);
 //
 
-#define EL(n) ((char *) array + (n) * elementSize)
+#define EL(n) ((char *) array + (n) * size)
 
 void nvMergeSort(
     void * array,
     NvU32 n,
     void * tempBuffer,
-    NvU32 elementSize,
+    NvU32 size,
     NvBool (*less)(void *,void *)
 ){
     char * mergeArray = (char *) tempBuffer;
@@ -169,8 +171,8 @@ void nvMergeSort(
             
             NvU32 loMin = i;
             NvU32 lo    = loMin;
-            NvU32 loMax = i+m;
-            NvU32 hi    = i+m;
+            NvU32 loMax = i + m;
+            NvU32 hi    = i + m;
             NvU32 hiMax = NV_MIN(n,i + 2 * m);
 
             char * dest = mergeArray;
@@ -182,20 +184,20 @@ void nvMergeSort(
             while(1){
                 if(less(EL(lo),EL(hi))){
                 
-                    portMemCopy(dest,elementSize,EL(lo),elementSize);
+                    portMemCopy(dest,size,EL(lo),size);
                     
                     lo++;
-                    dest+=elementSize;
+                    dest += size;
                     
                     if(lo >= loMax)
                         break;
                         
                 } else {
                     
-                    portMemCopy(dest,elementSize,EL(hi),elementSize);
+                    portMemCopy(dest,size,EL(hi),size);
                     
                     hi++;
-                    dest += elementSize;
+                    dest += size;
                     
                     if(hi >= hiMax)
                         break;
@@ -208,17 +210,17 @@ void nvMergeSort(
             
             while (lo < loMax){
                 
-                portMemCopy(dest,elementSize,EL(lo),elementSize);
+                portMemCopy(dest,size,EL(lo),size);
                 
-                dest += elementSize;
+                dest += size;
                 lo++;
             }
 
             while (hi < hiMax){
                 
-                portMemCopy(dest,elementSize,EL(hi),elementSize);
+                portMemCopy(dest,size,EL(hi),size);
                 
-                dest += elementSize;
+                dest += size;
                 hi++;
             }
 
@@ -244,54 +246,52 @@ void nvMergeSort(
 // Do not conflict with libc naming
 
 NvS32 nvStrToL(
-    NvU8 * pStr,
+    NvU8 * string,
     NvU8 ** pEndStr,
     NvS32 base,
     NvU8 stopChar,
-    NvU32 * numFound
+    NvU32 * found
 ){
-    NvU32 num;
-    NvU32 newnum;
-
-    * numFound = 0;
+    * found = 0;
 
     // scan for start of number
     
-    for(;* pStr;pStr++){
+    for(;* string;string++){
     
-        if(RANGE(* pStr,'0','9')){
-            * numFound = 1;
+        if(RANGE(* string,'0','9')){
+            * found = 1;
             break;
         }
 
-        if((BASE16 == base) && (RANGE(* pStr,'a','f'))){
-            * numFound = 1;
+        if((BASE16 == base) && (RANGE(* string,'a','f'))){
+            * found = 1;
             break;
         }
 
-        if((BASE16 == base) && (RANGE(* pStr,'A','F'))){
-            * numFound = 1;
+        if((BASE16 == base) && (RANGE(* string,'A','F'))){
+            * found = 1;
             break;
         }
         
-        if(* pStr == stopChar)
+        if(* string == stopChar)
             break;
     }
 
     // convert number
     
-    num = 0;
+    NvU32 newnum;
+    NvU32 num = 0;
     
-    for(;* pStr;pStr++){
+    for(;* string;string++){
         
-        if(RANGE(* pStr,'0','9')){
-            newnum = * pStr - '0';
+        if(RANGE(* string,'0','9')){
+            newnum = * string - '0';
         } else
-        if((BASE16 == base) && (RANGE(* pStr,'a','f'))){
-            newnum = * pStr - 'a' + 10;
+        if((BASE16 == base) && (RANGE(* string,'a','f'))){
+            newnum = * string - 'a' + 10;
         } else
-        if((BASE16 == base) && (RANGE(* pStr,'A','F'))){
-            newnum = * pStr - 'A' + 10;
+        if((BASE16 == base) && (RANGE(* string,'A','F'))){
+            newnum = * string - 'A' + 10;
         } else {
             break;
         }
@@ -300,7 +300,7 @@ NvS32 nvStrToL(
         num += newnum;
     }
 
-    * pEndStr = pStr;
+    * pEndStr = string;
 
     return num;
 }
@@ -340,7 +340,7 @@ NvU64 nvMsb64(NvU64 x){
  * @return the converted string
  */
  
-char * nvU32ToStr(NvU32 value,char * string,NvU32 radix){
+char * nvU32ToStr(NvU32 value,char * string,NvU32 base){
   
     char tmp[33];
     char * tp = tmp;
@@ -348,27 +348,33 @@ char * nvU32ToStr(NvU32 value,char * string,NvU32 radix){
     NvU32 v = value;
     char * sp;
 
-    if(radix > 36)
+    if(base > 36)
         return 0;
     
-    if(radix <= 1)
+    if(base <= 1)
         return 0;
 
     while(v || tp == tmp){
         
-        i = v % radix;
-        v = v / radix;
-        
-        if(i < 10)
-            * tp++ = (char)(i + '0');
-        else
-            * tp++ = (char)(i + 'a' - 10);
+        i = v % base;
+        v = v / base;
+
+        const char extra = (i < 10) 
+            ? '0' 
+            : ('a' - 10) ;
+
+        * tp = (char)(i + extra);
+            
+        tp++;
     }
 
     sp = string;
 
-    while(tp > tmp)
-        * sp++ = * --tp;
+    while(tp > tmp){
+        tp--;
+        * sp = * tp;
+        sp++;
+    }
     
     * sp = 0;
 
@@ -387,8 +393,14 @@ NvU32 nvStringLen(const char * str){
     
     NvU32 i = 0;
     
-    while(str[i++] != '\0');
+    while(true){
+        
+        if(str[i]) == '\0')
+            break;
+            
+        i++;
+    }
     
-    return i - 1;
+    return i;
 }
 
